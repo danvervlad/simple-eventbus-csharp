@@ -8,31 +8,32 @@ namespace simple.eventbus
         private readonly Bus _bus = new Bus();
         private readonly Queue<PostQueueItem> _postHandlers = new Queue<PostQueueItem>();
 
-        public void Send(string topic, string eventName, object data = null)
+        public bool Send(string topic, string eventName, object data = null)
         {
             var handlers = _bus.GetEventHandlers(topic, eventName);
-            if (handlers == null)
+            if (handlers == null || handlers.Count == 0)
             {
-                throw new InvalidOperationException(
-                    $"There are no handlers for topic: '{topic}', eventName: '{eventName}'");
+                return false;
             }
 
             foreach (var handler in handlers)
             {
                 handler(data);
             }
+
+            return true;
         }
 
-        public void Post(string topic, string eventName, object data = null)
+        public bool Post(string topic, string eventName, object data = null)
         {
             var handlers = _bus.GetEventHandlers(topic, eventName);
-            if (handlers == null)
+            if (handlers == null || handlers.Count == 0)
             {
-                throw new InvalidOperationException(
-                    $"There are no handlers for topic: '{topic}', eventName: '{eventName}'");
+                return false;
             }
 
-            _postHandlers.Enqueue(new PostQueueItem(handlers, data));
+            _postHandlers.Enqueue(new PostQueueItem(topic, eventName, data));
+            return true;
         }
 
         public IDisposable Subscribe(string topic, string eventName, Action<object> handler)
@@ -49,7 +50,13 @@ namespace simple.eventbus
             }
 
             var postQueueItem = _postHandlers.Dequeue();
-            foreach (var handler in postQueueItem.Handlers)
+            var handlers = _bus.GetEventHandlers(postQueueItem.Topic, postQueueItem.EventName);
+            if (handlers == null || handlers.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var handler in handlers)
             {
                 handler(postQueueItem.Data);
             }
@@ -57,12 +64,14 @@ namespace simple.eventbus
 
         private readonly struct PostQueueItem
         {
-            public readonly List<Action<object>> Handlers;
+            public readonly string Topic;
+            public readonly string EventName;
             public readonly object Data;
 
-            public PostQueueItem(List<Action<object>> handlers, object data)
+            public PostQueueItem(string topic, string eventName, object data)
             {
-                Handlers = handlers;
+                Topic = topic;
+                EventName = eventName;
                 Data = data;
             }
         }
@@ -90,7 +99,7 @@ namespace simple.eventbus
                 {
                     events = new Dictionary<string, List<Action<object>>>();
                     events.Add(eventName, new List<Action<object>>() { handler } );
-                    this.Add(topic, events);
+                    Add(topic, events);
                     return;
                 }
 
@@ -116,6 +125,15 @@ namespace simple.eventbus
                 }
 
                 eventHandlers.Remove(handler);
+                if (eventHandlers.Count == 0)
+                {
+                    events.Remove(eventName);
+                }
+
+                if (events.Count == 0)
+                {
+                    Remove(topic);
+                }
             }
         }
 
