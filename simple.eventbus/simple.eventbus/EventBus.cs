@@ -71,7 +71,7 @@ namespace simple.eventbus
         {
             public List<Action<object>> GetEventHandlers(string topic, string eventName)
             {
-                if (!this.TryGetValue(topic, out var events))
+                if (!TryGetValue(topic, out var events))
                 {
                     return null;
                 }
@@ -86,7 +86,7 @@ namespace simple.eventbus
 
             public void AddEventHandler(string topic, string eventName, Action<object> handler)
             {
-                if (!this.TryGetValue(topic, out var events))
+                if (!TryGetValue(topic, out var events))
                 {
                     events = new Dictionary<string, List<Action<object>>>();
                     events.Add(eventName, new List<Action<object>>() { handler } );
@@ -105,7 +105,7 @@ namespace simple.eventbus
 
             public void RemoveEventHandler(string topic, string eventName, Action<object> handler)
             {
-                if (!this.TryGetValue(topic, out var events))
+                if (!TryGetValue(topic, out var events))
                 {
                     return;
                 }
